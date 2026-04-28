@@ -1,4 +1,4 @@
-```html
+
 <!DOCTYPE html>
 <html lang="pt-PT">
 <head>
@@ -407,4 +407,150 @@
             document.getElementById('feedback-message').innerHTML = isPlayerTurn ? "Selecione um atributo!" : "O computador está a escolher...";
             document.getElementById('next-btn').classList.add('hidden');
             document.getElementById('next-btn').innerText = "Próxima Rodada ➡️";
-            document.getElementById('next-btn').classList.remove
+            document.getElementById('next-btn').classList.remove('bg-yellow-600', 'hover:bg-yellow-500');
+            document.getElementById('next-btn').classList.add('bg-green-600', 'hover:bg-green-500');
+
+            if (!isPlayerTurn && !waitingNext) {
+                setTimeout(cpuPlay, 2000);
+            }
+        }
+
+        // --- LÓGICA DE TURNO ---
+        function cpuPlay() {
+            if (waitingNext) return;
+            let card = cpuDeck[0];
+            let bestRatio = -1;
+            let bestAttr = 't5'; 
+
+            const maxValues = { t3: 4, t5: 8, t7: 11, n: 5, diss: 10 };
+
+            for (let attr in maxValues) {
+                let ratio = card[attr] / maxValues[attr];
+                if (ratio > bestRatio) {
+                    bestRatio = ratio;
+                    bestAttr = attr;
+                }
+            }
+
+            if (Math.random() > 0.8) {
+                const attrs = ['t3', 't5', 't7', 'n', 'diss'];
+                bestAttr = attrs[Math.floor(Math.random() * attrs.length)];
+            }
+
+            playTurn(bestAttr);
+        }
+
+        function playTurn(attribute) {
+            if (waitingNext) return;
+            waitingNext = true;
+
+            const cardP = playerDeck[0];
+            const cardC = cpuDeck[0];
+
+            // Revela a carta do CPU
+            document.getElementById('cpu-card-front').innerHTML = getCardHTML(cardC, false);
+            document.getElementById('cpu-card-front').classList.remove('hidden');
+            document.getElementById('cpu-card-front').classList.add('flex');
+            document.getElementById('cpu-card-back').classList.add('hidden');
+
+            // Toca a carta do CPU assim que é revelada
+            playArpeggio(cardC.midi, cardC.intervals);
+
+            document.getElementById(`stat-player-${attribute}`).classList.add('bg-blue-200');
+            document.getElementById(`stat-cpu-${attribute}`).classList.add('bg-red-200');
+
+            let winner = 0;
+            let reason = "";
+
+            if (cardP.isSuperTrunfo && !cardC.isTriadMaior) {
+                winner = 1; reason = "Super Trunfo venceu!";
+            } else if (cardP.isSuperTrunfo && cardC.isTriadMaior) {
+                winner = 2; reason = "Tríade Maior vence o Super Trunfo!";
+            } else if (cardC.isSuperTrunfo && !cardP.isTriadMaior) {
+                winner = 2; reason = "Super Trunfo venceu!";
+            } else if (cardC.isSuperTrunfo && cardP.isTriadMaior) {
+                winner = 1; reason = "Tríade Maior vence o Super Trunfo!";
+            } else {
+                if (cardP[attribute] > cardC[attribute]) {
+                    winner = 1; reason = "Valor superior!";
+                } else if (cardC[attribute] > cardP[attribute]) {
+                    winner = 2; reason = "Valor superior!";
+                } else {
+                    winner = 0; reason = `Empate em ${cardP[attribute]}!`;
+                }
+            }
+
+            const feedbackEl = document.getElementById('feedback-message');
+            const playerCardEl = document.getElementById('player-card');
+            const cpuCardEl = document.getElementById('cpu-card');
+            const nextBtn = document.getElementById('next-btn');
+
+            let cardsToWin = [playerDeck.shift(), cpuDeck.shift(), ...tiePile];
+            let extraMsg = tiePile.length > 0 ? ` (Ganhou as ${cardsToWin.length} cartas!)` : "";
+
+            if (winner === 1) {
+                feedbackEl.innerHTML = `<span class="text-green-400">Você Venceu!</span> <span class="text-sm block text-slate-300">${reason}${extraMsg}</span>`;
+                playerCardEl.classList.add('border-green-500');
+                cpuCardEl.classList.add('border-red-500');
+                
+                playerDeck.push(...cardsToWin);
+                tiePile = [];
+                isPlayerTurn = true;
+
+            } else if (winner === 2) {
+                feedbackEl.innerHTML = `<span class="text-red-400">Computador Venceu!</span> <span class="text-sm block text-slate-300">${reason}${extraMsg}</span>`;
+                cpuCardEl.classList.add('border-green-500');
+                playerCardEl.classList.add('border-red-500');
+                
+                cpuDeck.push(...cardsToWin);
+                tiePile = [];
+                isPlayerTurn = false;
+                
+            } else {
+                feedbackEl.innerHTML = `<span class="text-yellow-400 font-black text-3xl">EMPATE!</span> <span class="text-sm block text-slate-300 mt-1">As cartas foram para a mesa. Quem vencer a próxima leva tudo!</span>`;
+                playerCardEl.classList.add('border-yellow-500');
+                cpuCardEl.classList.add('border-yellow-500');
+                
+                tiePile = [...tiePile, cardsToWin[0], cardsToWin[1]];
+
+                nextBtn.innerText = "Ir para o Desempate ➡️";
+                nextBtn.classList.remove('bg-green-600', 'hover:bg-green-500');
+                nextBtn.classList.add('bg-yellow-600', 'hover:bg-yellow-500');
+            }
+
+            nextBtn.classList.remove('hidden');
+            
+            document.getElementById('player-score').innerText = playerDeck.length;
+            document.getElementById('cpu-score').innerText = cpuDeck.length;
+        }
+
+        function nextRound() {
+            if (playerDeck.length === 0 || cpuDeck.length === 0) {
+                endGame();
+                return;
+            }
+            round++;
+            waitingNext = false;
+            updateUI();
+        }
+
+        function endGame() {
+            document.getElementById('game-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('flex');
+            document.getElementById('end-screen').classList.remove('hidden');
+            
+            const title = document.getElementById('winner-title');
+            if (playerDeck.length > 0) {
+                title.innerText = "🏆 Você é o Mestre dos Acordes!";
+                title.className = "text-5xl font-bold mb-4 text-green-400";
+            } else {
+                title.innerText = "💀 O Computador Venceu.";
+                title.className = "text-5xl font-bold mb-4 text-red-500";
+            }
+        }
+    </script>
+</body>
+</html>
+
+
+
