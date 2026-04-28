@@ -1,0 +1,410 @@
+```html
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Super Trunfo: Acordes</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .card-enter {
+            animation: slideIn 0.4s ease-out forwards;
+        }
+        @keyframes slideIn {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .super-trunfo-bg {
+            background: linear-gradient(135deg, #ffd700 0%, #b8860b 100%);
+            color: #000;
+        }
+        .stat-row:hover:not(.disabled) {
+            background-color: #e2e8f0;
+            cursor: pointer;
+            transform: scale(1.02);
+            transition: all 0.2s;
+        }
+        .tie-pile-anim {
+            animation: pulseWarning 1.5s infinite;
+        }
+        @keyframes pulseWarning {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .chord-title {
+            font-size: clamp(2rem, 5vw, 2.5rem);
+        }
+        /* Toggle Switch Customizado */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #68D391;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #68D391;
+        }
+        .toggle-checkbox {
+            right: 0;
+            z-index: 1;
+            border-color: #e2e8f0;
+            transition: all 0.3s;
+        }
+        .toggle-label {
+            width: 3rem;
+            height: 1.5rem;
+            background-color: #cbd5e1;
+            border-radius: 9999px;
+            transition: all 0.3s;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-white font-sans min-h-screen flex flex-col">
+
+    <!-- Ecrã Inicial -->
+    <div id="start-screen" class="flex-1 flex flex-col items-center justify-center p-6 text-center">
+        <div class="mb-8 text-6xl">🎸</div>
+        <h1 class="text-4xl md:text-6xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">
+            Super Trunfo:<br>Acordes
+        </h1>
+        <p class="mb-8 max-w-lg text-slate-300">
+            Domine a teoria musical! São <strong>238 cartas</strong>. Escolha o melhor atributo do seu acorde para vencer. <br><br>
+            <strong>Novidade:</strong> Modo Musical incluído! Ouça a formação de cada acorde em arpejo.
+        </p>
+        <button onclick="startGame()" class="px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-full shadow-lg shadow-blue-500/50 transition-transform transform hover:scale-105 text-xl flex items-center gap-2 mx-auto">
+            <span>Jogar Agora</span>
+            <span class="text-2xl">🎵</span>
+        </button>
+    </div>
+
+    <!-- Ecrã do Jogo -->
+    <div id="game-screen" class="hidden flex-1 flex flex-col max-w-5xl mx-auto w-full p-4">
+        
+        <!-- Controlos de Topo -->
+        <div class="flex justify-end items-center mb-4 gap-3">
+            <span class="text-sm font-semibold text-slate-300">Modo Musical</span>
+            <div class="relative inline-block w-12 align-middle select-none transition duration-200 ease-in">
+                <input type="checkbox" name="toggle" id="audio-toggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer" checked/>
+                <label for="audio-toggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+            </div>
+        </div>
+
+        <!-- Cabeçalho (Pontuação) -->
+        <div class="flex justify-between items-center mb-6 bg-slate-800 p-4 rounded-xl border border-slate-700 relative">
+            <div class="text-center w-1/4">
+                <p class="text-sm text-slate-400">Jogador</p>
+                <p class="text-2xl font-bold text-blue-400" id="player-score">0</p>
+            </div>
+            
+            <div class="text-center w-2/4 flex flex-col items-center justify-center">
+                <span id="turn-indicator" class="px-4 py-1 rounded-full text-sm font-bold bg-blue-500/20 text-blue-400 border border-blue-500/50">
+                    Sua Vez
+                </span>
+                <p class="text-xs text-slate-500 mt-1" id="round-info">Rodada 1</p>
+                
+                <div id="tie-pile-indicator" class="hidden mt-2 px-3 py-1 bg-yellow-500/20 border border-yellow-500 text-yellow-400 rounded-full text-xs font-bold tie-pile-anim">
+                    ⚠️ <span id="tie-pile-count">0</span> cartas na mesa!
+                </div>
+            </div>
+
+            <div class="text-center w-1/4">
+                <p class="text-sm text-slate-400">Computador</p>
+                <p class="text-2xl font-bold text-red-400" id="cpu-score">0</p>
+            </div>
+        </div>
+
+        <!-- Área de Cartas -->
+        <div class="flex flex-col md:flex-row gap-6 justify-center items-center flex-1">
+            
+            <!-- Carta do Jogador -->
+            <div class="w-full max-w-sm flex-1 perspective">
+                <p class="text-center mb-2 text-blue-400 font-semibold">A Sua Carta</p>
+                <div id="player-card" class="bg-white rounded-2xl shadow-2xl overflow-hidden card-enter border-4 border-slate-300 relative">
+                    <!-- Preenchido via JS -->
+                </div>
+            </div>
+
+            <!-- VS Badge -->
+            <div class="text-3xl font-black text-slate-600 italic hidden md:block">VS</div>
+
+            <!-- Carta do Computador -->
+            <div class="w-full max-w-sm flex-1 perspective">
+                <p class="text-center mb-2 text-red-400 font-semibold">Carta do Computador</p>
+                <div id="cpu-card" class="bg-slate-800 rounded-2xl shadow-2xl overflow-hidden border-4 border-slate-700 h-full min-h-[400px] flex items-center justify-center relative">
+                    <div id="cpu-card-back" class="text-6xl">❓</div>
+                    <div id="cpu-card-front" class="hidden w-full h-full bg-white text-black flex-col">
+                        <!-- Preenchido via JS -->
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Feedback e Ações -->
+        <div class="mt-8 text-center h-24">
+            <h2 id="feedback-message" class="text-2xl font-bold mb-4"></h2>
+            <button id="next-btn" onclick="nextRound()" class="hidden mx-auto px-8 py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-full shadow-lg transition-transform transform hover:scale-105">
+                Próxima Rodada ➡️
+            </button>
+        </div>
+
+    </div>
+
+    <!-- Ecrã de Fim de Jogo -->
+    <div id="end-screen" class="hidden flex-1 flex flex-col items-center justify-center p-6 text-center">
+        <h1 id="winner-title" class="text-5xl font-bold mb-4"></h1>
+        <p class="mb-8 text-xl text-slate-300">O jogo terminou!</p>
+        <button onclick="location.reload()" class="px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-full shadow-lg text-xl">
+            Jogar Novamente
+        </button>
+    </div>
+
+    <script>
+        // --- ÁUDIO (SINTETIZADOR AVELUDADO) ---
+        let audioCtx;
+
+        function initAudio() {
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        // Tocar um arpejo
+        function playArpeggio(baseMidi, intervals) {
+            initAudio();
+            const isAudioOn = document.getElementById('audio-toggle').checked;
+            if (!isAudioOn) return;
+
+            const startTime = audioCtx.currentTime;
+            
+            intervals.forEach((interval, index) => {
+                const noteTime = startTime + (index * 0.25); // 250ms entre cada nota
+                playNote(baseMidi + interval, noteTime);
+            });
+        }
+
+        // Tocar uma única nota suave
+        function playNote(midiNote, time) {
+            const freq = 440 * Math.pow(2, (midiNote - 69) / 12);
+            
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            const filter = audioCtx.createBiquadFilter();
+
+            // Configuração para som "aveludado" (Harpa / Piano Elétrico Suave)
+            osc.type = 'sine'; // Onda base muito suave
+            
+            filter.type = 'lowpass';
+            filter.frequency.value = 1200; // Corta frequências muito altas
+
+            // Envelope do som (Attack e Release)
+            gain.gain.setValueAtTime(0, time);
+            gain.gain.linearRampToValueAtTime(0.4, time + 0.05); // Attack rápido mas suave
+            gain.gain.exponentialRampToValueAtTime(0.1, time + 0.5); // Decay
+            gain.gain.linearRampToValueAtTime(0, time + 2.0); // Release longo e suave
+
+            osc.frequency.setValueAtTime(freq, time);
+
+            // Conexões
+            osc.connect(filter);
+            filter.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            osc.start(time);
+            osc.stop(time + 2.5); // Para de processar após o release
+        }
+
+        // Função global para o botão da carta
+        window.playManualChord = function(midiBase, intervalsStr) {
+            // Força ativar o som temporariamente se clicado manualmente
+            const intervals = intervalsStr.split(',').map(Number);
+            initAudio();
+            
+            const startTime = audioCtx.currentTime;
+            intervals.forEach((interval, index) => {
+                const noteTime = startTime + (index * 0.25);
+                playNote(midiBase + interval, noteTime);
+            });
+        };
+
+
+        // --- BASE DE DADOS DE ACORDES ---
+        // Raízes e seus valores MIDI base (A oitava 3, começando no C3 = 48)
+        const roots = [
+            { name: 'C', midi: 48 }, { name: 'C#', midi: 49 }, { name: 'Db', midi: 49 }, 
+            { name: 'D', midi: 50 }, { name: 'D#', midi: 51 }, { name: 'Eb', midi: 51 }, 
+            { name: 'E', midi: 52 }, { name: 'F', midi: 53 }, { name: 'F#', midi: 54 }, 
+            { name: 'Gb', midi: 54 }, { name: 'G', midi: 55 }, { name: 'G#', midi: 56 }, 
+            { name: 'Ab', midi: 56 }, { name: 'A', midi: 57 }, { name: 'A#', midi: 58 }, 
+            { name: 'Bb', midi: 58 }, { name: 'B', midi: 59 }
+        ];
+
+        // Adicionado: Array "intervals" representando os semitons do arpejo a partir da fundamental
+        const types = [
+            { suffix: '', name: 'Maior', t3: 4, t5: 7, t7: 0, n: 3, diss: 1, isTriadMaior: true, intervals: [0, 4, 7] },
+            { suffix: 'm', name: 'Menor', t3: 3, t5: 7, t7: 0, n: 3, diss: 2, isTriadMaior: false, intervals: [0, 3, 7] },
+            { suffix: 'dim', name: 'Diminuto', t3: 3, t5: 6, t7: 0, n: 3, diss: 6, isTriadMaior: false, intervals: [0, 3, 6] },
+            { suffix: 'aug', name: 'Aumentado', t3: 4, t5: 8, t7: 0, n: 3, diss: 7, isTriadMaior: false, intervals: [0, 4, 8] },
+            { suffix: 'maj7', name: 'Maior 7ª', t3: 4, t5: 7, t7: 11, n: 4, diss: 3, isTriadMaior: false, intervals: [0, 4, 7, 11] },
+            { suffix: 'm7', name: 'Menor 7ª', t3: 3, t5: 7, t7: 10, n: 4, diss: 4, isTriadMaior: false, intervals: [0, 3, 7, 10] },
+            { suffix: '7', name: 'Dominante', t3: 4, t5: 7, t7: 10, n: 4, diss: 5, isTriadMaior: false, intervals: [0, 4, 7, 10] },
+            { suffix: 'm7b5', name: 'Meio-Diminuto', t3: 3, t5: 6, t7: 10, n: 4, diss: 7, isTriadMaior: false, intervals: [0, 3, 6, 10] },
+            { suffix: 'dim7', name: 'Diminuto 7ª', t3: 3, t5: 6, t7: 9, n: 4, diss: 8, isTriadMaior: false, intervals: [0, 3, 6, 9] },
+            { suffix: 'add9', name: 'Add 9', t3: 4, t5: 7, t7: 0, n: 4, diss: 3, isTriadMaior: false, intervals: [0, 4, 7, 14] },
+            { suffix: 'maj9', name: 'Maior 9ª', t3: 4, t5: 7, t7: 11, n: 5, diss: 4, isTriadMaior: false, intervals: [0, 4, 7, 11, 14] },
+            { suffix: 'm9', name: 'Menor 9ª', t3: 3, t5: 7, t7: 10, n: 5, diss: 5, isTriadMaior: false, intervals: [0, 3, 7, 10, 14] },
+            { suffix: '9', name: 'Dominante 9ª', t3: 4, t5: 7, t7: 10, n: 5, diss: 6, isTriadMaior: false, intervals: [0, 4, 7, 10, 14] },
+            { suffix: '7b9', name: 'Dominante 7b9', t3: 4, t5: 7, t7: 10, n: 5, diss: 10, isTriadMaior: false, intervals: [0, 4, 7, 10, 13] }
+        ];
+
+        const attrNames = {
+            t3: "Semitons p/ 3ª",
+            t5: "Semitons p/ 5ª",
+            t7: "Semitons p/ 7ª",
+            n: "Qtd. de Notas",
+            diss: "Grau Dissonância"
+        };
+
+        // --- ESTADO DO JOGO ---
+        let deck = [];
+        let playerDeck = [];
+        let cpuDeck = [];
+        let tiePile = []; 
+        let isPlayerTurn = true;
+        let round = 1;
+        let waitingNext = false;
+
+        // --- FUNÇÕES DE LÓGICA ---
+        function generateDeck() {
+            let newDeck = [];
+            for (let root of roots) {
+                for (let type of types) {
+                    let cardId = root.name + type.suffix;
+                    let isSuper = cardId === 'C7b9';
+                    newDeck.push({
+                        id: cardId,
+                        fullName: `${root.name} ${type.name}`,
+                        midi: root.midi,
+                        intervals: type.intervals,
+                        isSuperTrunfo: isSuper,
+                        isTriadMaior: type.isTriadMaior,
+                        t3: type.t3,
+                        t5: type.t5,
+                        t7: type.t7,
+                        n: type.n,
+                        diss: type.diss
+                    });
+                }
+            }
+            return newDeck;
+        }
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        function startGame() {
+            initAudio(); // Inicia o contexto de áudio com a interação do utilizador
+            
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('hidden');
+            document.getElementById('game-screen').classList.add('flex');
+
+            deck = generateDeck();
+            shuffle(deck);
+
+            const halfDeck = Math.floor(deck.length / 2);
+            playerDeck = deck.slice(0, halfDeck);
+            cpuDeck = deck.slice(halfDeck, deck.length);
+            tiePile = [];
+            
+            isPlayerTurn = true;
+            round = 1;
+            updateUI();
+        }
+
+        // --- RENDERIZAÇÃO DE CARTAS ---
+        function getCardHTML(card, isPlayer) {
+            let headerClass = card.isSuperTrunfo ? "super-trunfo-bg" : "bg-slate-800 text-white";
+            let trunfoBadge = card.isSuperTrunfo ? `<div class="bg-black text-yellow-400 text-xs font-bold py-1 text-center tracking-widest uppercase">Super Trunfo</div>` : '';
+            
+            let statsHTML = Object.keys(attrNames).map(attr => {
+                let rowClass = `flex justify-between p-3 border-b border-slate-100 stat-row ${!isPlayerTurn || !isPlayer ? 'disabled pointer-events-none' : ''}`;
+                let onClick = (isPlayer && isPlayerTurn && !waitingNext) ? `onclick="playTurn('${attr}')"` : '';
+                return `
+                    <div class="${rowClass}" ${onClick} id="stat-${isPlayer?'player':'cpu'}-${attr}">
+                        <span class="font-medium text-slate-700">${attrNames[attr]}</span>
+                        <span class="font-bold text-slate-900 bg-slate-200 px-2 py-1 rounded">${card[attr]}</span>
+                    </div>
+                `;
+            }).join('');
+
+            // Serializar intervalos para o clique manual
+            const intervalsStr = card.intervals.join(',');
+
+            return `
+                <div class="flex flex-col h-full bg-white pb-2 relative">
+                    <button onclick="playManualChord(${card.midi}, '${intervalsStr}')" class="absolute top-4 right-4 z-10 bg-white/20 hover:bg-white/40 rounded-full p-2 backdrop-blur-sm transition text-xl shadow-sm">🔊</button>
+                    
+                    <div class="${headerClass} p-4 text-center pt-8">
+                        <h2 class="chord-title font-black mb-1 leading-none">${card.id}</h2>
+                        <p class="text-sm opacity-80">${card.fullName}</p>
+                    </div>
+                    ${trunfoBadge}
+                    
+                    <div class="flex-1 bg-slate-50 flex items-center justify-center py-6">
+                        <div class="text-6xl text-slate-300">🎹</div>
+                    </div>
+                    <div class="flex flex-col text-sm bg-white">
+                        ${statsHTML}
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateUI() {
+            document.getElementById('player-score').innerText = playerDeck.length;
+            document.getElementById('cpu-score').innerText = cpuDeck.length;
+            document.getElementById('round-info').innerText = `Rodada ${round}`;
+
+            const tieIndicator = document.getElementById('tie-pile-indicator');
+            if (tiePile.length > 0) {
+                tieIndicator.classList.remove('hidden');
+                document.getElementById('tie-pile-count').innerText = tiePile.length;
+            } else {
+                tieIndicator.classList.add('hidden');
+            }
+
+            const turnIndicator = document.getElementById('turn-indicator');
+            if (isPlayerTurn) {
+                turnIndicator.innerText = "A Sua Vez";
+                turnIndicator.className = "px-4 py-1 rounded-full text-sm font-bold bg-blue-500/20 text-blue-400 border border-blue-500/50";
+                
+                // Toca a carta do jogador se for a vez dele no início da rodada
+                if (!waitingNext && playerDeck.length > 0) {
+                    playArpeggio(playerDeck[0].midi, playerDeck[0].intervals);
+                }
+
+            } else {
+                turnIndicator.innerText = "Vez do Computador";
+                turnIndicator.className = "px-4 py-1 rounded-full text-sm font-bold bg-red-500/20 text-red-400 border border-red-500/50 flex items-center gap-2";
+                turnIndicator.innerHTML += `<svg class="animate-spin h-4 w-4 text-red-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
+            }
+
+            document.getElementById('player-card').innerHTML = getCardHTML(playerDeck[0], true);
+            
+            document.getElementById('cpu-card-back').classList.remove('hidden');
+            document.getElementById('cpu-card-front').classList.add('hidden');
+            document.getElementById('cpu-card').classList.remove('border-green-500', 'border-red-500', 'border-yellow-500', 'border-slate-300');
+            document.getElementById('player-card').classList.remove('border-green-500', 'border-red-500', 'border-yellow-500');
+            
+            document.getElementById('feedback-message').innerHTML = isPlayerTurn ? "Selecione um atributo!" : "O computador está a escolher...";
+            document.getElementById('next-btn').classList.add('hidden');
+            document.getElementById('next-btn').innerText = "Próxima Rodada ➡️";
+            document.getElementById('next-btn').classList.remove
